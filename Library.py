@@ -6,13 +6,35 @@ import sqlite3
 import datetime
 conn = sqlite3.connect('library.db')
 c=conn.cursor()
-c.execute("create table if not exists libTab(CollegeID varchar(20),Course varchar(20),BookCode varchar(20),StudentName varchar(20),DateOfIssue varchar(20))")
+c.execute("create table if not exists libTab(CollegeID varchar(20),Course varchar(20),BookCode varchar(20),StudentName varchar(20),DateOfIssue varchar(20),ReturnDate varchar(20))")
 # c.execute(")
 # conn.commit()
 
+def isLate(ExpectedDate):
+    a = datetime.date.today()
+    date_object = datetime.datetime.strptime("{}".format(ExpectedDate), '%Y-%m-%d').date()
+    data = str(a-date_object)
+    newStr=""
+    for i in range(len(data)-15,-1,-1):
+        newStr+=data[i]
+    days = int(newStr[::-1])
+    if days < 0:
+        return True
+    return False
+
+def fineCalc(ExpectedDate):
+    a = datetime.date.today()
+    date_object = datetime.datetime.strptime("{}".format(ExpectedDate), '%Y-%m-%d').date()
+    data = str(a-date_object)
+    newStr=""
+    for i in range(len(data)-15,-1,-1):
+        newStr+=data[i]
+    days = int(newStr[::-1])
+    return [days,days*10]
+
 def displayRec():
     c.execute("Select * from libTab")
-    data = pd.DataFrame(c.fetchall(),columns=["CollegeID","Course","BookCode","StudentName","DateOfIssue"])
+    data = pd.DataFrame(c.fetchall(),columns=["CollegeID","Course","BookCode","StudentName","DateOfIssue","ReturnDate"])
     return data
 def issueBook():
     CollegeID = st.text_input("Collge ID Here: ")
@@ -25,7 +47,7 @@ def issueBook():
     if btn1:
         st.dataframe(displayRec())
     if btn:
-        c.execute('insert into libTab(CollegeID,Course,BookCode,StudentName,DateOfIssue) values(?,?,?,?,?)',(CollegeID,Course,BookCode,StudentName,DateOfIssue))
+        c.execute('insert into libTab(CollegeID,Course,BookCode,StudentName,DateOfIssue,ReturnDate) values(?,?,?,?,?,?)',(CollegeID,Course,BookCode,StudentName,DateOfIssue,str(datetime.date.today()+datetime.timedelta(days=7))))
         conn.commit()
         st.success("Records Added Successfully!")
 def deleteRecords():
@@ -33,12 +55,18 @@ def deleteRecords():
     bookCode = st.text_input("Enter BookCode Here")
     btn = st.button("Delete Now!")
     if btn:
-        Query="delete from libTab where CollegeID='{}' and BookCode='{}'".format(CollegeID,bookCode)
-        c.execute(Query)
-        conn.commit()
-        st.success("Records Deleted Successfully")
-        st.write("Updated Records")
-        st.dataframe(displayRec())
+        c.execute("Select ReturnDate from libTab where CollegeID='{}' and BookCode='{}'".format(CollegeID,bookCode))
+        data = c.fetchall()
+        expectedReturn = data[0][0]
+        if isLate(expectedReturn):
+            Query="delete from libTab where CollegeID='{}' and BookCode='{}'".format(CollegeID,bookCode)
+            c.execute(Query)
+            conn.commit()
+            st.success("Records Deleted Successfully")
+            st.write("Updated Records")
+            st.dataframe(displayRec())
+        else:
+            st.write("## You pay fine {} INR as You are {} days late".format(fineCalc(expectedReturn)[1],fineCalc(expectedReturn)[0]))
 def letter():
     st.title("Library Management Program")
     st.subheader("Dashboard")
