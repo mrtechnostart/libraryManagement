@@ -9,7 +9,13 @@ c=conn.cursor()
 c.execute("create table if not exists libTab(CollegeID varchar(20),Course varchar(20),BookCode varchar(20),StudentName varchar(20),DateOfIssue varchar(20),ReturnDate varchar(20))")
 # c.execute(")
 # conn.commit()
-
+def inBookRec(BookCode):
+    c.execute('select * from bookRec')
+    data = c.fetchall()
+    for i in data:
+        if i[1] == BookCode:
+            return True
+    return False
 def isLate(ExpectedDate):
     a = datetime.date.today()
     date_object = datetime.datetime.strptime("{}".format(ExpectedDate), '%Y-%m-%d').date()
@@ -21,7 +27,17 @@ def isLate(ExpectedDate):
     if days < 0:
         return True
     return False
-
+def addBooks():
+    c.execute('create table if not exists bookRec(BookName Text,BookCode Text,DateAdded Text)')
+    BookName = st.text_input("Book Name Here")
+    BookCode = st.text_input("Book Code Here")
+    if st.button("Add Now!"):
+        c.execute('Insert into bookRec(BookName,BookCode,DateAdded) values(?,?,?)',(BookName,BookCode,str(datetime.date.today())))
+        conn.commit()
+        st.success("Book Added Successfully, Below Are Added Books!")
+        c.execute('Select * from bookRec')
+        data = pd.DataFrame(c.fetchall(),columns=["BookName","BookCode","DateAdded"])
+        st.dataframe(data)
 def fineCalc(ExpectedDate):
     a = datetime.date.today()
     date_object = datetime.datetime.strptime("{}".format(ExpectedDate), '%Y-%m-%d').date()
@@ -47,9 +63,12 @@ def issueBook():
     if btn1:
         st.dataframe(displayRec())
     if btn:
-        c.execute('insert into libTab(CollegeID,Course,BookCode,StudentName,DateOfIssue,ReturnDate) values(?,?,?,?,?,?)',(CollegeID,Course,BookCode,StudentName,DateOfIssue,str(datetime.date.today()+datetime.timedelta(days=7))))
-        conn.commit()
-        st.success("Records Added Successfully!")
+        if inBookRec(BookCode):
+            c.execute('insert into libTab(CollegeID,Course,BookCode,StudentName,DateOfIssue,ReturnDate) values(?,?,?,?,?,?)',(CollegeID,Course,BookCode,StudentName,DateOfIssue,str(datetime.date.today()+datetime.timedelta(days=7))))
+            conn.commit()
+            st.success("Records Added Successfully!")
+        else:
+            st.warning("Book Not In Database!")
 def deleteRecords():
     CollegeID = st.text_input("Enter College ID Here: ")
     bookCode = st.text_input("Enter BookCode Here")
@@ -72,7 +91,7 @@ def letter():
     st.subheader("Dashboard")
     selected = option_menu(
         menu_title="Main Menu",
-        options=["Home","Issue Book","Delete Records","About"],
+        options=["Home","Add Books","Issue Book","Delete Records","About"],
         icons=["house","book","envelop","contact"],
         menu_icon="cast",
         orientation="horizontal"
@@ -83,4 +102,6 @@ def letter():
         issueBook()
     if selected=="Delete Records":
         deleteRecords()
+    if selected=="Add Books":
+        addBooks()
 letter()
